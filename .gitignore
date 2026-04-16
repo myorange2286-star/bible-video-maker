@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+*.spec
+qt_runtime/
+qt_runtime_clean/
+.qt-runtime/
+output_test.png
+output_title.png
+.DS_Store
+*.dylib
