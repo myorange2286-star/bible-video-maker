@@ -10,7 +10,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction
 from models.verse import Verse
 from models.settings import SlideSettings
-from parsing.verse_parser import parse_verses
+from parsing.verse_parser import parse_verses, merge_two_files
 from rendering.slide_renderer import SlideRenderer
 from rendering.video_exporter import VideoExporter, find_ffmpeg
 from ui.verse_list import VerseListWidget
@@ -106,6 +106,8 @@ class MainWindow(QMainWindow):
         """시그널/슬롯 연결"""
         # 절 리스트에서 파일 로드 요청
         self._verse_list.file_load_requested.connect(self._load_file)
+        # 두 파일 합치기 요청
+        self._verse_list.merge_load_requested.connect(self._merge_files)
         # 절 선택 변경 → 즉시 미리보기
         self._verse_list.current_verse_changed.connect(self._on_verse_selected)
         # 설정 변경 → 디바운스 미리보기
@@ -133,6 +135,24 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "파일 오류", f"파일을 찾을 수 없습니다:\n{path}")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"파일을 읽는 중 오류가 발생했습니다:\n{e}")
+
+    def _merge_files(self, left_path: str, right_path: str):
+        """두 파일을 합쳐서 로드"""
+        try:
+            self._verses = merge_two_files(left_path, right_path)
+            left_name = os.path.basename(left_path)
+            right_name = os.path.basename(right_path)
+            label = f"왼쪽: {left_name}\n오른쪽: {right_name}"
+            self._verse_list.set_verses(self._verses, label)
+            self._status.showMessage(
+                f"{left_name} + {right_name} — {len(self._verses)}절 합침 완료"
+            )
+        except ValueError as e:
+            QMessageBox.warning(self, "파일 오류", str(e))
+        except FileNotFoundError as e:
+            QMessageBox.warning(self, "파일 오류", f"파일을 찾을 수 없습니다:\n{e}")
+        except Exception as e:
+            QMessageBox.critical(self, "오류", f"파일 합치기 중 오류가 발생했습니다:\n{e}")
 
     # === 미리보기 ===
 
