@@ -11,6 +11,7 @@ class ColumnConfig:
     """좌 또는 우 컬럼의 텍스트 설정"""
     label: str = ""                    # 언어 라벨 (예: "KISWAHILI", "한국어")
     font_family: str = ""              # 빈 문자열이면 시스템 기본
+    font_path: str = ""                # 폰트 파일 경로 (있으면 font_family보다 우선)
     font_size: int = 48                # pt
     font_weight: int = 400             # 300=Light, 400=Regular, 700=Bold
     letter_spacing: float = 0.0        # px (-5 ~ 20)

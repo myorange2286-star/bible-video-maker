@@ -4,14 +4,18 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import (
     QImage, QPainter, QFont, QColor, QPen, QLinearGradient,
-    QFontMetrics, QRadialGradient, QBrush, QPixmap
+    QFontMetrics, QRadialGradient, QBrush, QPixmap, QFontDatabase
 )
+import os
 from models.verse import Verse
 from models.settings import SlideSettings, ColumnConfig
 
 
 class SlideRenderer:
     """순수 함수형 렌더러: (Verse, SlideSettings) → QImage"""
+
+    # 폰트 파일 로드 캐시: {경로: 폰트 패밀리 이름}
+    _font_file_cache: dict[str, str] = {}
 
     def render(self, verse: Verse, settings: SlideSettings) -> QImage:
         """한 절의 슬라이드를 QImage로 렌더링"""
@@ -192,7 +196,7 @@ class SlideRenderer:
         x: int, y_top: int, col_width: int, y_bottom: int
     ):
         """한 컬럼의 텍스트를 워드랩하여 그리기"""
-        font = self._make_font(config.font_family, config.font_size, config.font_weight, config.letter_spacing)
+        font = self._make_font_from_config(config)
         p.setFont(font)
         p.setPen(QColor(config.text_color))
 
@@ -239,6 +243,28 @@ class SlideRenderer:
         p.drawText(label_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, config.label)
 
     # === 유틸리티 ===
+
+    def _make_font_from_config(self, config: ColumnConfig) -> QFont:
+        """ColumnConfig에서 QFont 생성. font_path가 있으면 파일에서 로드."""
+        family = config.font_family
+        if config.font_path and os.path.isfile(config.font_path):
+            family = self._load_font_file(config.font_path)
+        return self._make_font(family, config.font_size, config.font_weight, config.letter_spacing)
+
+    @classmethod
+    def _load_font_file(cls, path: str) -> str:
+        """폰트 파일을 Qt에 등록하고 패밀리 이름 반환. 캐시 사용."""
+        if path in cls._font_file_cache:
+            return cls._font_file_cache[path]
+
+        font_id = QFontDatabase.addApplicationFont(path)
+        if font_id >= 0:
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            if families:
+                cls._font_file_cache[path] = families[0]
+                return families[0]
+        # 로드 실패 시 빈 문자열 (시스템 기본 사용)
+        return ""
 
     @staticmethod
     def _make_font(family: str, size: int, weight: int, letter_spacing: float = 0.0) -> QFont:

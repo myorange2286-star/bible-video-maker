@@ -92,7 +92,19 @@ class SettingsPanel(QWidget):
         self._left_font.addItems(fonts)
         self._left_font.setEditable(True)
         self._left_font.currentTextChanged.connect(self._emit_changed)
-        left_form.addRow("폰트:", self._left_font)
+        left_form.addRow("시스템 폰트:", self._left_font)
+
+        # 폰트 파일 직접 선택
+        left_file_layout = QHBoxLayout()
+        self._left_font_path = QLineEdit()
+        self._left_font_path.setPlaceholderText("폰트 파일 경로 (선택시 시스템 폰트 대신 사용)")
+        self._left_font_path.textChanged.connect(self._emit_changed)
+        left_file_layout.addWidget(self._left_font_path)
+        left_browse = QPushButton("파일")
+        left_browse.setFixedWidth(45)
+        left_browse.clicked.connect(lambda: self._browse_font(self._left_font_path))
+        left_file_layout.addWidget(left_browse)
+        left_form.addRow("폰트 파일:", left_file_layout)
 
         self._left_size = QSpinBox()
         self._left_size.setRange(20, 120)
@@ -131,7 +143,19 @@ class SettingsPanel(QWidget):
         self._right_font.addItems(fonts)
         self._right_font.setEditable(True)
         self._right_font.currentTextChanged.connect(self._emit_changed)
-        right_form.addRow("폰트:", self._right_font)
+        right_form.addRow("시스템 폰트:", self._right_font)
+
+        # 폰트 파일 직접 선택
+        right_file_layout = QHBoxLayout()
+        self._right_font_path = QLineEdit()
+        self._right_font_path.setPlaceholderText("폰트 파일 경로 (선택시 시스템 폰트 대신 사용)")
+        self._right_font_path.textChanged.connect(self._emit_changed)
+        right_file_layout.addWidget(self._right_font_path)
+        right_browse = QPushButton("파일")
+        right_browse.setFixedWidth(45)
+        right_browse.clicked.connect(lambda: self._browse_font(self._right_font_path))
+        right_file_layout.addWidget(right_browse)
+        right_form.addRow("폰트 파일:", right_file_layout)
 
         self._right_size = QSpinBox()
         self._right_size.setRange(20, 120)
@@ -469,6 +493,24 @@ class SettingsPanel(QWidget):
         if path:
             self._bgm_path.setText(path)
 
+    def _browse_font(self, line_edit: QLineEdit):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "폰트 파일 선택", "",
+            "폰트 파일 (*.ttf *.otf *.ttc);;모든 파일 (*)"
+        )
+        if path:
+            # 폰트를 Qt에 등록하고 라인에디트에 경로 표시
+            font_id = QFontDatabase.addApplicationFont(path)
+            if font_id >= 0:
+                families = QFontDatabase.applicationFontFamilies(font_id)
+                if families:
+                    line_edit.setText(path)
+                    line_edit.setToolTip(f"로드된 폰트: {families[0]}")
+                else:
+                    line_edit.setText(path)
+            else:
+                line_edit.setText(path)
+
     # === 설정 읽기/쓰기 ===
 
     def get_settings(self) -> SlideSettings:
@@ -505,6 +547,7 @@ class SettingsPanel(QWidget):
             left_column=ColumnConfig(
                 label=self._left_label_text.text(),
                 font_family=self._left_font.currentText(),
+                font_path=self._left_font_path.text(),
                 font_size=self._left_size.value(),
                 font_weight=weight_map.get(self._left_weight.currentIndex(), 400),
                 letter_spacing=self._left_spacing.value(),
@@ -519,6 +562,7 @@ class SettingsPanel(QWidget):
             right_column=ColumnConfig(
                 label=self._right_label_text.text(),
                 font_family=self._right_font.currentText(),
+                font_path=self._right_font_path.text(),
                 font_size=self._right_size.value(),
                 font_weight=weight_map.get(self._right_weight.currentIndex(), 400),
                 letter_spacing=self._right_spacing.value(),
@@ -566,6 +610,7 @@ class SettingsPanel(QWidget):
             idx = self._left_font.findText(s.left_column.font_family)
             if idx >= 0:
                 self._left_font.setCurrentIndex(idx)
+            self._left_font_path.setText(s.left_column.font_path)
             self._left_size.setValue(s.left_column.font_size)
             weight_idx = {300: 0, 400: 1, 700: 2}.get(s.left_column.font_weight, 1)
             self._left_weight.setCurrentIndex(weight_idx)
@@ -579,6 +624,7 @@ class SettingsPanel(QWidget):
             idx = self._right_font.findText(s.right_column.font_family)
             if idx >= 0:
                 self._right_font.setCurrentIndex(idx)
+            self._right_font_path.setText(s.right_column.font_path)
             self._right_size.setValue(s.right_column.font_size)
             weight_idx = {300: 0, 400: 1, 700: 2}.get(s.right_column.font_weight, 1)
             self._right_weight.setCurrentIndex(weight_idx)
