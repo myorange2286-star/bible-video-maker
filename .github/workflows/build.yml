@@ -35,7 +35,7 @@ jobs:
 
       - name: Windows 빌드
         run: |
-          pyinstaller --name "BibleVideoMaker" --windowed --onedir --noconfirm --clean --add-data "presets;presets" --add-data "samples;samples" --add-data "qt_bootstrap.py;." --add-data "resource_path.py;." --add-binary "ffmpeg.exe;." --add-binary "ffprobe.exe;." --hidden-import "PyQt6.QtCore" --hidden-import "PyQt6.QtGui" --hidden-import "PyQt6.QtWidgets" --collect-all "PyQt6" app.py
+          pyinstaller --name "BibleVideoMaker" --windowed --onedir --noconfirm --clean --manifest "resources/app.manifest" --add-data "presets;presets" --add-data "samples;samples" --add-data "qt_bootstrap.py;." --add-data "resource_path.py;." --add-binary "ffmpeg.exe;." --add-binary "ffprobe.exe;." --hidden-import "PyQt6.QtCore" --hidden-import "PyQt6.QtGui" --hidden-import "PyQt6.QtWidgets" --collect-all "PyQt6" app.py
 
       - name: Windows 결과물 업로드
         uses: actions/upload-artifact@v4
