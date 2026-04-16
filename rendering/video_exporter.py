@@ -16,14 +16,32 @@ from rendering.slide_renderer import SlideRenderer
 
 
 def find_ffmpeg() -> str | None:
-    """ffmpeg 실행 파일 경로 탐색. 없으면 None 반환."""
+    """ffmpeg 실행 파일 경로 탐색. 앱 내장 → 시스템 순서로 검색."""
+    import sys
+
+    # 1. 앱에 내장된 ffmpeg (PyInstaller 패키징 시)
+    if getattr(sys, 'frozen', False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.dirname(base)  # 프로젝트 루트
+
+    # Windows: ffmpeg.exe, Mac/Linux: ffmpeg
+    for name in ["ffmpeg.exe", "ffmpeg"]:
+        bundled = os.path.join(base, name)
+        if os.path.isfile(bundled):
+            return bundled
+
+    # 2. 시스템 PATH
     path = shutil.which("ffmpeg")
     if path:
         return path
-    # macOS Homebrew 기본 경로
+
+    # 3. macOS Homebrew 기본 경로
     for p in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]:
         if os.path.isfile(p):
             return p
+
     return None
 
 
