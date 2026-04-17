@@ -34,8 +34,23 @@ def _replace_symlink(target: Path, source: Path) -> None:
     target.symlink_to(source)
 
 
-def prepare_qt_runtime(project_root: Path | None = None) -> Path:
-    """Create a visible Qt plugin cache and export paths before QApplication."""
+def prepare_qt_runtime(project_root: Path | None = None) -> Path | None:
+    """Create a visible Qt plugin cache and export paths before QApplication.
+
+    PyInstaller 패키징 환경이나 Windows에서는 건너뜁니다.
+    이 함수는 macOS 개발 환경(venv)에서만 필요합니다.
+    """
+    import sys
+    import platform
+
+    # PyInstaller로 패키징된 경우 → Qt DLL이 이미 올바른 위치에 있음
+    if getattr(sys, 'frozen', False):
+        return None
+
+    # Windows에서는 불필요 (venv에서도 정상 작동)
+    if platform.system() == "Windows":
+        return None
+
     if project_root is None:
         project_root = Path(__file__).resolve().parent
     else:
