@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QSplitter, QMessageBox, QStatusBar,
-    QToolBar, QFileDialog, QProgressDialog
+    QToolBar, QFileDialog, QProgressDialog, QInputDialog
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction
@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
         # ffmpeg 확인
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
-            reply = QMessageBox.warning(
+            QMessageBox.warning(
                 self, "ffmpeg 미설치",
                 "영상 생성 도구(ffmpeg)가 설치되어 있지 않습니다.\n\n"
                 "설치 방법:\n"
@@ -238,15 +238,46 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # 저장 경로 선택
-        path, _ = QFileDialog.getSaveFileName(
-            self, "영상 저장 위치", "output.mp4",
-            "MP4 영상 (*.mp4)"
+        # 1. 모드 선택: 한 파일 / 절별 분리
+        mode, ok = QInputDialog.getItem(
+            self, "영상 출력 모드", "어떻게 저장할까요?",
+            ["한 개 파일로 합치기", "절마다 별도 파일로 분리"],
+            0, False,
         )
-        if not path:
+        if not ok:
             return
+        per_verse = (mode == "절마다 별도 파일로 분리")
 
         self._settings = self._settings_panel.get_settings()
+
+        if per_verse:
+            # 2a. 접두사 입력
+            prefix, ok = QInputDialog.getText(
+                self, "파일명 접두사",
+                "파일명 앞부분을 입력하세요 (예: 창세기 → 창세기_001.mp4)",
+                text="verse",
+            )
+            if not ok or not prefix.strip():
+                return
+            prefix = prefix.strip()
+
+            # 2b. 저장 폴더 선택
+            folder = QFileDialog.getExistingDirectory(
+                self, "저장 폴더 선택", os.path.expanduser("~/Desktop")
+            )
+            if not folder:
+                return
+            output_path = folder
+        else:
+            # 2. 단일 파일 저장 경로
+            path, _ = QFileDialog.getSaveFileName(
+                self, "영상 저장 위치", "output.mp4",
+                "MP4 영상 (*.mp4)"
+            )
+            if not path:
+                return
+            output_path = path
+            prefix = ""
 
         # 프로그레스 다이얼로그
         self._progress = QProgressDialog("영상 생성 준비 중...", "취소", 0, len(self._verses) + 1, self)
@@ -257,7 +288,8 @@ class MainWindow(QMainWindow):
 
         # VideoExporter 스레드
         self._exporter = VideoExporter(
-            self._verses, self._settings, path, ffmpeg
+            self._verses, self._settings, output_path, ffmpeg,
+            per_verse=per_verse, filename_prefix=prefix,
         )
         self._exporter.progress.connect(self._on_export_progress)
         self._exporter.finished_ok.connect(self._on_export_done)
@@ -272,10 +304,11 @@ class MainWindow(QMainWindow):
 
     def _on_export_done(self, output_path: str):
         self._progress.close()
-        QMessageBox.information(
-            self, "완료",
-            f"영상이 생성되었습니다!\n\n{output_path}"
-        )
+        if os.path.isdir(output_path):
+            msg = f"절별 영상이 모두 생성되었습니다!\n\n저장 폴더:\n{output_path}"
+        else:
+            msg = f"영상이 생성되었습니다!\n\n{output_path}"
+        QMessageBox.information(self, "완료", msg)
         self._status.showMessage(f"영상 생성 완료: {os.path.basename(output_path)}")
 
     def _on_export_error(self, error_msg: str):
@@ -289,6 +322,17 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "안내", "먼저 텍스트 파일을 열어주세요.")
             return
 
+        # 1. 접두사 입력
+        prefix, ok = QInputDialog.getText(
+            self, "파일명 접두사",
+            "파일명 앞부분을 입력하세요 (예: 창세기 → 창세기_001.png)",
+            text="verse",
+        )
+        if not ok or not prefix.strip():
+            return
+        prefix = prefix.strip()
+
+        # 2. 저장 폴더 선택
         folder = QFileDialog.getExistingDirectory(
             self, "PNG 저장 폴더 선택", os.path.expanduser("~/Desktop")
         )
@@ -311,7 +355,7 @@ class MainWindow(QMainWindow):
                 progress.setValue(i)
                 progress.setLabelText(f"{i+1}/{total} — 절 {verse.number} 렌더링 중...")
                 img = self._renderer.render(verse, self._settings)
-                filename = f"verse_{str(verse.number).zfill(digits)}.png"
+                filename = f"{prefix}_{str(verse.number).zfill(digits)}.png"
                 img.save(os.path.join(folder, filename), "PNG")
                 saved += 1
             progress.setValue(total)
