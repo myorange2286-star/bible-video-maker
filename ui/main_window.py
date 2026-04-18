@@ -97,10 +97,16 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
 
         # 영상 생성
-        export_action = QAction("영상 생성", self)
+        export_action = QAction("영상 생성 (MP4)", self)
         export_action.setShortcut("Ctrl+E")
         export_action.triggered.connect(self._on_export_video)
         toolbar.addAction(export_action)
+
+        # PNG 일괄 내보내기
+        export_png_action = QAction("이미지 내보내기 (PNG)", self)
+        export_png_action.setShortcut("Ctrl+Shift+E")
+        export_png_action.triggered.connect(self._on_export_png)
+        toolbar.addAction(export_png_action)
 
     def _connect_signals(self):
         """시그널/슬롯 연결"""
@@ -275,6 +281,50 @@ class MainWindow(QMainWindow):
     def _on_export_error(self, error_msg: str):
         self._progress.close()
         QMessageBox.critical(self, "영상 생성 오류", error_msg)
+
+    # === PNG 일괄 내보내기 ===
+
+    def _on_export_png(self):
+        if not self._verses:
+            QMessageBox.information(self, "안내", "먼저 텍스트 파일을 열어주세요.")
+            return
+
+        folder = QFileDialog.getExistingDirectory(
+            self, "PNG 저장 폴더 선택", os.path.expanduser("~/Desktop")
+        )
+        if not folder:
+            return
+
+        self._settings = self._settings_panel.get_settings()
+        total = len(self._verses)
+
+        progress = QProgressDialog("이미지 내보내는 중...", "취소", 0, total, self)
+        progress.setWindowTitle("PNG 내보내기")
+        progress.setMinimumDuration(0)
+
+        digits = max(3, len(str(total)))
+        saved = 0
+        try:
+            for i, verse in enumerate(self._verses):
+                if progress.wasCanceled():
+                    break
+                progress.setValue(i)
+                progress.setLabelText(f"{i+1}/{total} — 절 {verse.number} 렌더링 중...")
+                img = self._renderer.render(verse, self._settings)
+                filename = f"verse_{str(verse.number).zfill(digits)}.png"
+                img.save(os.path.join(folder, filename), "PNG")
+                saved += 1
+            progress.setValue(total)
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(self, "PNG 내보내기 오류", f"오류 발생:\n{e}")
+            return
+
+        QMessageBox.information(
+            self, "완료",
+            f"이미지 {saved}개 저장 완료!\n\n저장 위치:\n{folder}"
+        )
+        self._status.showMessage(f"PNG {saved}개 저장됨: {folder}")
 
     # === 종료 확인 ===
 

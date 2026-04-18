@@ -36,40 +36,103 @@ class SlideRenderer:
         # 3. 절 번호
         y_offset = self._draw_verse_number(p, w, verse.number, y_offset, settings)
 
-        # 4. 수직 구분선
-        if settings.divider_visible:
-            self._draw_vertical_divider(p, w, h, y_offset, settings)
+        # 4. 모드별 본문 + 구분선 + 라벨
+        text_area_top = y_offset + 20
+        text_area_bottom = h - 40
+        mode = getattr(settings, "layout_mode", "dual_horizontal")
 
-        # 5. 좌우 컬럼 텍스트
+        if mode == "single":
+            self._render_single(p, verse, settings, w, h, text_area_top, text_area_bottom)
+        elif mode == "dual_vertical":
+            self._render_dual_vertical(p, verse, settings, w, h, text_area_top, text_area_bottom)
+        else:  # dual_horizontal
+            self._render_dual_horizontal(p, verse, settings, w, h, text_area_top, text_area_bottom)
+
+        p.end()
+        return img
+
+    def _render_single(self, p, verse, settings, w, h, y_top, y_bottom):
+        """단일 컬럼 가운데 모드: left_text를 화면 전체 폭으로 가운데 표시"""
+        col_padding = settings.column_padding
+        col_width = w - 2 * col_padding
+        x = col_padding
+
+        # 단일 모드는 가로 가운데 정렬 강제
+        config = self._copy_with_align(settings.left_column, "center")
+
+        self._draw_column_text(p, verse.left_text, config, x, y_top, col_width, y_bottom)
+
+        if settings.left_column.label_visible and settings.left_column.label:
+            self._draw_label(p, settings.left_column, x, col_width, h)
+
+    def _render_dual_horizontal(self, p, verse, settings, w, h, y_top, y_bottom):
+        """좌우 분할 모드 (기본): 왼쪽=외국어, 오른쪽=한국어"""
         col_padding = settings.column_padding
         col_gap = settings.column_gap
         col_width = (w - 2 * col_padding - col_gap) // 2
 
-        # 왼쪽 컬럼 영역
         left_x = col_padding
-        # 오른쪽 컬럼 영역
         right_x = col_padding + col_width + col_gap
 
-        text_area_top = y_offset + 20
-        text_area_bottom = h - 40
+        if settings.divider_visible:
+            self._draw_vertical_divider(p, w, h, y_top - 20, settings)
 
-        self._draw_column_text(
-            p, verse.left_text, settings.left_column,
-            left_x, text_area_top, col_width, text_area_bottom
-        )
-        self._draw_column_text(
-            p, verse.right_text, settings.right_column,
-            right_x, text_area_top, col_width, text_area_bottom
-        )
+        self._draw_column_text(p, verse.left_text, settings.left_column,
+                               left_x, y_top, col_width, y_bottom)
+        self._draw_column_text(p, verse.right_text, settings.right_column,
+                               right_x, y_top, col_width, y_bottom)
 
-        # 6. 언어 라벨
         if settings.left_column.label_visible and settings.left_column.label:
             self._draw_label(p, settings.left_column, left_x, col_width, h)
         if settings.right_column.label_visible and settings.right_column.label:
             self._draw_label(p, settings.right_column, right_x, col_width, h)
 
-        p.end()
-        return img
+    def _render_dual_vertical(self, p, verse, settings, w, h, y_top, y_bottom):
+        """위아래 분할 모드: 위=외국어(left), 아래=한국어(right)"""
+        col_padding = settings.column_padding
+        col_gap = settings.column_gap
+        col_width = w - 2 * col_padding
+        x = col_padding
+
+        # 라벨 표시 영역 확보 (라벨이 있으면 아래쪽 행 끝을 살짝 위로)
+        label_reserve = 0
+        if settings.right_column.label_visible and settings.right_column.label:
+            label_reserve = settings.right_column.label_font_size + 30
+
+        total_h = y_bottom - y_top - col_gap - label_reserve
+        row_h = total_h // 2
+
+        top_y = y_top
+        top_y_end = top_y + row_h
+        bot_y = top_y_end + col_gap
+        bot_y_end = bot_y + row_h
+
+        # 가운데 가로 구분선
+        if settings.divider_visible:
+            mid_y = top_y_end + col_gap // 2
+            pen = QPen(QColor(settings.divider_color), settings.divider_thickness)
+            p.setPen(pen)
+            margin = w // 6
+            p.drawLine(margin, mid_y, w - margin, mid_y)
+
+        # 가로 가운데 정렬 강제
+        top_cfg = self._copy_with_align(settings.left_column, "center")
+        bot_cfg = self._copy_with_align(settings.right_column, "center")
+
+        self._draw_column_text(p, verse.left_text, top_cfg, x, top_y, col_width, top_y_end)
+        self._draw_column_text(p, verse.right_text, bot_cfg, x, bot_y, col_width, bot_y_end)
+
+        # 라벨: 위쪽 라벨은 위 영역 상단, 아래쪽 라벨은 화면 하단
+        if settings.left_column.label_visible and settings.left_column.label:
+            self._draw_label_at(p, settings.left_column, x, col_width, top_y - settings.left_column.label_font_size - 5)
+        if settings.right_column.label_visible and settings.right_column.label:
+            self._draw_label(p, settings.right_column, x, col_width, h)
+
+    @staticmethod
+    def _copy_with_align(config: ColumnConfig, text_align: str) -> ColumnConfig:
+        """ColumnConfig 복사 + text_align 변경 (단일/세로 모드용)"""
+        from dataclasses import replace
+        return replace(config, text_align=text_align)
 
     def render_title(self, title_text: str, settings: SlideSettings) -> QImage:
         """타이틀 슬라이드 렌더링"""
@@ -240,6 +303,16 @@ class SlideRenderer:
 
         fm = QFontMetrics(font)
         label_rect = QRectF(x, h - fm.height() - 20, col_width, fm.height() + 10)
+        p.drawText(label_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, config.label)
+
+    def _draw_label_at(self, p: QPainter, config: ColumnConfig, x: int, col_width: int, y: int):
+        """임의 y 좌표에 언어 라벨 표시 (위아래 모드의 상단 라벨용)"""
+        font = self._make_font("", config.label_font_size, 400)
+        p.setFont(font)
+        p.setPen(QColor(config.label_color))
+
+        fm = QFontMetrics(font)
+        label_rect = QRectF(x, y, col_width, fm.height() + 10)
         p.drawText(label_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, config.label)
 
     # === 유틸리티 ===

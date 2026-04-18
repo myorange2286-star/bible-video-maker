@@ -58,9 +58,12 @@ class SlideSettings:
         label_color="#8C826E",
     ))
 
+    # === 레이아웃 모드 ===
+    layout_mode: str = "dual_horizontal"  # "single" | "dual_horizontal" | "dual_vertical"
+
     # === 컬럼 레이아웃 ===
     column_padding: int = 90           # 좌우 여백 (px)
-    column_gap: int = 60               # 좌우 컬럼 사이 간격
+    column_gap: int = 60               # 좌우 컬럼 사이 간격 (가로 모드) / 위아래 간격 (세로 모드)
 
     # === 절 번호 ===
     verse_number_color: str = "#C83C3C"  # 빨강

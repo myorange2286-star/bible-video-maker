@@ -241,6 +241,17 @@ class SettingsPanel(QWidget):
         widget = QWidget()
         form = QFormLayout(widget)
 
+        # 레이아웃 모드
+        self._layout_mode = QComboBox()
+        self._layout_mode.addItems([
+            "단일 (한 절씩 가운데)",
+            "좌우 분할 (외국어 | 한국어)",
+            "위아래 분할 (외국어 / 한국어)",
+        ])
+        self._layout_mode.setCurrentIndex(1)
+        self._layout_mode.currentIndexChanged.connect(self._emit_changed)
+        form.addRow("레이아웃 모드:", self._layout_mode)
+
         # 해상도
         self._resolution = QComboBox()
         self._resolution.addItems(["1920 x 1080", "2560 x 1440", "3840 x 2160"])
@@ -532,6 +543,10 @@ class SettingsPanel(QWidget):
         dur_modes = ["auto", "fixed", "manual"]
         dur_mode = dur_modes[self._duration_mode.currentIndex()]
 
+        # 레이아웃 모드 파싱
+        layout_modes = ["single", "dual_horizontal", "dual_vertical"]
+        layout_mode = layout_modes[self._layout_mode.currentIndex()]
+
         # FPS 파싱
         fps = int(self._fps.currentText())
 
@@ -574,6 +589,7 @@ class SettingsPanel(QWidget):
                 text_align="left",
                 vertical_align=self._right_valign.currentText(),
             ),
+            layout_mode=layout_mode,
             column_padding=self._col_padding.value(),
             column_gap=self._col_gap.value(),
             verse_number_color=self._verse_num_color.color,
@@ -641,6 +657,10 @@ class SettingsPanel(QWidget):
             self._divider_color_btn.color = s.divider_color
 
             # 레이아웃
+            layout_idx = ["single", "dual_horizontal", "dual_vertical"].index(
+                getattr(s, "layout_mode", "dual_horizontal")
+            )
+            self._layout_mode.setCurrentIndex(layout_idx)
             self._col_padding.setValue(s.column_padding)
             self._col_gap.setValue(s.column_gap)
             self._divider_visible.setChecked(s.divider_visible)

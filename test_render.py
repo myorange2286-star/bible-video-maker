@@ -24,15 +24,22 @@ def main():
     verses = parse_verses(sample_path)
     print(f"파싱 완료: {len(verses)}절 로드됨")
 
-    # 2. 기본 설정으로 렌더링
-    settings = SlideSettings()
+    # 2. 3가지 레이아웃 모드 모두 렌더링
     renderer = SlideRenderer()
+    out_dir = os.path.dirname(__file__)
 
-    # 첫 번째 절 렌더링
+    for mode in ("dual_horizontal", "single", "dual_vertical"):
+        s = SlideSettings()
+        s.layout_mode = mode
+        img = renderer.render(verses[0], s)
+        path = os.path.join(out_dir, f"output_test_{mode}.png")
+        img.save(path, "PNG")
+        print(f"렌더링 완료 [{mode}]: {path}")
+
+    # 기존 출력 호환
+    settings = SlideSettings()
     img = renderer.render(verses[0], settings)
-    output_path = os.path.join(os.path.dirname(__file__), "output_test.png")
-    img.save(output_path, "PNG")
-    print(f"렌더링 완료: {output_path}")
+    img.save(os.path.join(out_dir, "output_test.png"), "PNG")
 
     # 타이틀 슬라이드도 테스트
     title_img = renderer.render_title(settings.header_text, settings)
